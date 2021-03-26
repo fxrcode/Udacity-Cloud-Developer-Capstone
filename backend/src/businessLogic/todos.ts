@@ -2,6 +2,7 @@ import * as uuid from 'uuid'
 
 import { TodoItem } from '../models/TodoItem'
 import { TodoUpdate } from '../models/TodoUpdate'
+import { Follow } from '../models/Follow'
 import { DBAccess } from '../dataLayer/dbAccess'
 import { S3Access } from '../dataLayer/s3Access'
 
@@ -76,6 +77,47 @@ export async function updateTodo(userId: string, todoId: string, todoUpdate: Upd
     return await dbAccess.updateTodo(userId, todoId, todoUpdate as TodoUpdate)
 }
 
+/******************************************************
+ * Follow
+ */
+export async function follow(followerId: string, followeeId: string) {
+    LOG.info('bizlogic: new follow')
+
+    // TODO: add validate for follower & followee in user table
+    // hasUser(followerId)
+    // hasUser(followeeId)
+
+    const follow: Follow = {
+        fromId: followerId,
+        toId: followeeId,
+        createdAt: new Date().toISOString(),
+    }
+    LOG.info(`creating new Follow: ${follow}`)
+
+    await dbAccess.createFollow(follow)
+    return follow
+}
+
+export async function getFolloweeTodos(userId: string): Promise<any> {
+    LOG.info('bizlogic get All todos from user followees')
+    // get the list of followees
+    const follows: Follow[] = await dbAccess.getFollowees(userId)
+    var followees = []
+    follows.forEach(follow => {
+        followees.push(follow.toId)
+    });
+    LOG.info(`User ${userId} follows ${followees}`)
+    // get the list of todos of followees and combine them as a whole
+    const usersTodos = await dbAccess.getUsersTodos(followees)
+    LOG.info(`User ${userId}'s followees' todos: ${usersTodos}`)
+    return usersTodos
+}
+
+
+/******************************************************
+ * Comment
+ */
+
 
 // this is helper function
 async function validateUser(userId: string, todoId: string) {
@@ -91,3 +133,5 @@ async function validateUser(userId: string, todoId: string) {
 
     LOG.info(`validated ok: user ${userId} 's todo: ${todoId}`)
 }
+
+async function

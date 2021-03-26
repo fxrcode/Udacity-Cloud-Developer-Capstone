@@ -6,6 +6,7 @@ import { DocumentClient } from 'aws-sdk/clients/dynamodb'
 import { TodoItem } from '../models/TodoItem'
 import { TodoUpdate } from '../models/TodoUpdate'
 import { createLogger } from '../utils/logger'
+import { Follow } from '../models/Follow'
 
 const XAWS = AWSXRay.captureAWS(AWS)
 const LOG = createLogger('dbAccess')
@@ -14,7 +15,9 @@ export class DBAccess {
   constructor(
     private readonly docClient: DocumentClient = createDynamoDBClient(),
     private readonly todosTable = process.env.TODOS_TABLE,
-    private readonly todosIndex = process.env.TODO_ID_INDEX
+    private readonly todosIndex = process.env.TODO_ID_INDEX,
+    private readonly followTable = process.env.FOLLOWS_TABLE,
+    private readonly followIndex = process.env.FOLLOW_ID_INDEX
   ) { }
 
   async createTodo(todoItem: TodoItem): Promise<TodoItem> {
@@ -115,7 +118,50 @@ export class DBAccess {
 
     LOG.info(`update result: ${result}`)
   }
+
+  /************************************************
+   *  Follow
+   */
+  async createFollow(follow: Follow) {
+    LOG.info(`create follow item ${follow}`)
+
+    await this.docClient.put({
+      TableName: this.followTable,
+      Item: follow
+    }).promise()
+    return follow
+  }
+
+  async getFollowees(userId: string): Promise<Follow[]> {
+    LOG.info(`getting user ${userId}'s followees`)
+
+    const result = await this.docClient.query({
+      TableName: this.followTable,
+      IndexName: this.followIndex,
+      KeyConditionExpression: 'fromId = :fromId',
+      ExpressionAttributeValues: {
+        ':fromId': userId
+      },
+      ScanIndexForward: false
+    }).promise()
+
+    return result.Items as Follow[]
+  }
+
+
+  async getUsersTodos(followees: any[]): Promise<any> {
+    let userToTodos = new Map()
+    // https://stackoverflow.com/questions/37576685/using-async-await-with-a-foreach-loop
+    // reading in parallel
+    await Promise.all(followees.map(async (userId) => {
+      const todos = this.getAllTodos(userId)
+      userToTodos.set(userId, todos)
+    }));
+
+    return userToTodos
+  }
 }
+
 
 function createDynamoDBClient() {
   if (process.env.IS_OFFLINE) {
