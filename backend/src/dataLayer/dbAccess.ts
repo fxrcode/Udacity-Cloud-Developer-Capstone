@@ -7,6 +7,7 @@ import { TodoItem } from '../models/TodoItem'
 import { TodoUpdate } from '../models/TodoUpdate'
 import { createLogger } from '../utils/logger'
 import { Follow } from '../models/Follow'
+import { Comment } from '../models/Comment'
 
 const XAWS = AWSXRay.captureAWS(AWS)
 const LOG = createLogger('dbAccess')
@@ -17,7 +18,8 @@ export class DBAccess {
     private readonly todosTable = process.env.TODOS_TABLE,
     private readonly todosIndex = process.env.TODO_ID_INDEX,
     private readonly followTable = process.env.FOLLOWS_TABLE,
-    private readonly followIndex = process.env.FOLLOW_ID_INDEX
+    private readonly followIndex = process.env.FOLLOW_ID_INDEX,
+    private readonly commentsTable = process.env.COMMENTS_TABLE,
   ) { }
 
   async createTodo(todoItem: TodoItem): Promise<TodoItem> {
@@ -190,6 +192,20 @@ export class DBAccess {
     }
 
     return userToTodos as TodoItem[]
+  }
+
+  /******************************************************************
+   *  COMMENT
+   */
+  async createComment(commentItem: Comment) {
+    LOG.info(`creating comment`, commentItem)
+
+    await this.docClient.put({
+      TableName: this.commentsTable,
+      Item: commentItem
+    }).promise()
+
+    return commentItem
   }
 }
 

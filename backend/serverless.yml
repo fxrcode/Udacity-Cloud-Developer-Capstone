@@ -17,6 +17,8 @@ provider:
     TODO_ID_INDEX: TodoIdIndex
     FOLLOWS_TABLE: FOLLOWS-${self:provider.stage}
     FOLLOW_ID_INDEX: FollowerIdIndex
+    COMMENTS_TABLE: COMMENTSS-${self:provider.stage}
+    COMMENT_ID_INDEX: CommentIdIndex
     IMAGES_S3_BUCKET: todo-images-fxrc-${self:provider.stage}
     SIGNED_URL_EXPIRATION: 300
 
@@ -167,12 +169,12 @@ functions:
           - dynamodb:PutItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.FOLLOWS_TABLE}/index/${self:provider.environment.FOLLOW_ID_INDEX}
 
-  GetFolloweesTodos:
+  Newsfeed:
     handler: src/lambda/http/getFolloweesTodos.handler
     events:
       - http:
           method: get
-          path: follows/todos
+          path: newsfeed
           cors: true
           authorizer: Auth
     iamRoleStatements:
@@ -199,6 +201,39 @@ functions:
           - dynamodb:GetItem
           - dynamodb:PutItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.FOLLOWS_TABLE}/index/${self:provider.environment.FOLLOW_ID_INDEX}
+
+  CreateComment:
+    handler: src/lambda/http/createComment.handler
+    events:
+      - http:
+          method: post
+          path: comments
+          cors: true
+          authorizer: Auth
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+          - dynamodb:GetItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:Query
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}/index/${self:provider.environment.TODO_ID_INDEX}
+
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+          - dynamodb:GetItem
+          - dynamodb:PutItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.COMMENTS_TABLE}
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+          - dynamodb:GetItem
+          - dynamodb:PutItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.COMMENTS_TABLE}/index/${self:provider.environment.COMMENT_ID_INDEX}
 
 
 
@@ -271,6 +306,33 @@ resources:
               ProjectionType: ALL
         BillingMode: PAY_PER_REQUEST
         TableName: ${self:provider.environment.FOLLOWS_TABLE}
+
+    CommentsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: commenterId
+            AttributeType: S
+          - AttributeName: todoId
+            AttributeType: S
+          - AttributeName: createdAt
+            AttributeType: S
+        KeySchema:
+          - AttributeName: todoId
+            KeyType: HASH
+          - AttributeName: commenterId
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: ${self:provider.environment.COMMENT_ID_INDEX}
+            KeySchema:
+              - AttributeName: todoId
+                KeyType: HASH
+              - AttributeName: createdAt
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:provider.environment.COMMENTS_TABLE}
 
 
     ## S3 Bucket

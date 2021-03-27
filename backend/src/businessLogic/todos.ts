@@ -3,11 +3,13 @@ import * as uuid from 'uuid'
 import { TodoItem } from '../models/TodoItem'
 import { TodoUpdate } from '../models/TodoUpdate'
 import { Follow } from '../models/Follow'
+import { Comment } from '../models/Comment'
 import { DBAccess } from '../dataLayer/dbAccess'
 import { S3Access } from '../dataLayer/s3Access'
 
 import { CreateTodoRequest } from '../requests/CreateTodoRequest'
 import { UpdateTodoRequest } from '../requests/UpdateTodoRequest'
+import { CreateCommentRequest } from '../requests/CommentRequest'
 
 import { createLogger } from '../utils/logger'
 
@@ -126,6 +128,22 @@ export async function getFolloweesTodos(userId: string): Promise<any> {
 /******************************************************
  * Comment
  */
+export async function comment(userId: string, commentReq: CreateCommentRequest) {
+    LOG.info('bizlogic create new comment')
+
+    await validateUser(commentReq.todoOwnerId, commentReq.todoId)
+
+    const commentItem: Comment = {
+        commenterId: userId,
+        todoId: commentReq.todoId,
+        todoOwnerId: commentReq.todoOwnerId,
+        createdAt: new Date().toISOString(),
+        comment: commentReq.comment
+    }
+
+    await dbAccess.createComment(commentItem)
+    return commentItem
+}
 
 
 // this is helper function
