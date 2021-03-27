@@ -7,7 +7,10 @@
 * I implemented in backend, and tested in postman. Please check the postman-collection file: `Cloud-Dev Capstone.postman_collection.json` to test.
 
 # Issues
-* for connection URL, I have to give speicific permission in the sendNotification function: `execute-api:ManageConnections`
+## Websockets
+* There is a different mechanism than the standard HTTP headers; some abstraction layers implement a similar strategy. So I ported original HTTP's authorizer: `backend/src/lambda/auth/auth0Authorizer.ts` to handle Websocket authorization.
+* for connection URL, I have to give speicific permission in the sendNotification function: `execute-api:ManageConnections`, so as to allow websocket operations: POST, DELETE and GET.
+
 * I noticed one weird issue: some functions always got `internal server error` in 20 min. And I got them available later with any actions. But I only encountered this twice till now (30 deploys)
     * just encountered again when upload image. No log in `GenerateUploadUrl`. I'm able to upload 2 min later.
     * I guess the issue is with cold-start, since all functions are same size: 22.1MB! So I package individually to downsize to less than 2MB ![](screenshots/optimizedSize-2mb.png)
