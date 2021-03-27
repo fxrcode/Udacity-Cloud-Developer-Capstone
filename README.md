@@ -18,7 +18,8 @@
 
 * Create a new todo from UI ![](screenshots/createTodo-ui.png)
 * upload Image todo in UI ![](screenshots/uploadImg-ui.png)
-
+* login with another gmail account in UI ![](screenshots/another-login-ui.png)
+* auth0 login page in ui ![](screenshots/auth0-integration-ui.png)
 * create new Follow ![](screenshots/createFollow.png)
 * create new comment ![](screenshots/createComment.png)
 * get all Todos ![](screenshots/getAllTodos.png)
