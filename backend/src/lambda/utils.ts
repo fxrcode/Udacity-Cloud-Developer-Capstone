@@ -14,3 +14,11 @@ export function getUserId(event: APIGatewayProxyEvent): string {
 
   return parseUserId(jwtToken)
 }
+
+export function getUserIdWebsocket(event: APIGatewayProxyEvent): string {
+  const authorization = event.headers.Auth
+  const split = authorization.split(' ')
+  const jwtToken = split[1]
+
+  return parseUserId(jwtToken)
+}

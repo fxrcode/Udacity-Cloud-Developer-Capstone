@@ -18,7 +18,7 @@ export const handler = middy(async (event: APIGatewayProxyEvent): Promise<APIGat
 
   const connectionId = event.requestContext.connectionId
   const key = {
-    id: connectionId
+    connId: connectionId
   }
 
   console.log('Removing item with key: ', key)

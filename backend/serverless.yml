@@ -17,11 +17,13 @@ provider:
     TODO_ID_INDEX: TodoIdIndex
     FOLLOWS_TABLE: FOLLOWS-${self:provider.stage}
     FOLLOW_ID_INDEX: FollowerIdIndex
-    COMMENTS_TABLE: COMMENTSS-${self:provider.stage}
+    COMMENTS_TABLE: COMMENTS-${self:provider.stage}
     COMMENT_ID_INDEX: CommentIdIndex
     IMAGES_S3_BUCKET: todo-images-fxrc-${self:provider.stage}
     SIGNED_URL_EXPIRATION: 300
     CONNECTIONS_TABLE: Connections-${self:provider.stage}
+    CONNECTION_ID_INDEX: ConnectionIdIndex
+
 
   iamRoleStatements: #this will be set by all functions
     - Effect: Allow
@@ -40,6 +42,8 @@ provider:
 functions:
   Auth:
     handler: src/lambda/auth/auth0Authorizer.handler
+  AuthWS:
+    handler: src/lambda/auth/WebsocketAuth0Authorizer.handler
 
   # TODO: Configure this function
   GetTodos:
@@ -241,7 +245,7 @@ functions:
     events:
       - websocket:
           route: $connect
-          authorizer: Auth
+          authorizer: AuthWS
     iamRoleStatements:
       - Effect: Allow
         Action:
@@ -367,13 +371,22 @@ resources:
       Type: AWS::DynamoDB::Table
       Properties:
         AttributeDefinitions:
-          -
-            AttributeName: id
+          - AttributeName: connId
+            AttributeType: S
+          - AttributeName: userId
             AttributeType: S
         KeySchema:
-          -
-            AttributeName: id
+          - AttributeName: connId
             KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: ${self:provider.environment.CONNECTION_ID_INDEX}
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+              - AttributeName: connId
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
         BillingMode: PAY_PER_REQUEST
         TableName: ${self:provider.environment.CONNECTIONS_TABLE}
 

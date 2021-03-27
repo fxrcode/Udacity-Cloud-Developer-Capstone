@@ -7,7 +7,7 @@ import Axios from 'axios'
 import { Jwt } from '../../auth/Jwt'
 import { JwtPayload } from '../../auth/JwtPayload'
 
-const logger = createLogger('auth')
+const logger = createLogger('websocket-auth')
 
 // TODO: Provide a URL that can be used to download a certificate that can be used
 // to verify JWT token signature.
@@ -17,9 +17,10 @@ const jwksUrl = 'https://dev-r-c1y0ps.us.auth0.com/.well-known/jwks.json'
 export const handler = async (
   event: CustomAuthorizerEvent
 ): Promise<CustomAuthorizerResult> => {
-  logger.info('Authorizing a user', event.authorizationToken)
+  logger.info('Authorizing a user', event.headers.Auth)
+  logger.info(`udacity: event.header ${event.headers}, event.token ${event.headers.Auth}`, event)
   try {
-    const jwtToken = await verifyToken(event.authorizationToken)
+    const jwtToken = await verifyToken(event.headers.Auth)
     logger.info('User was authorized', jwtToken)
 
     return {
