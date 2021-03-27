@@ -5,6 +5,10 @@ plugins:
   - serverless-webpack
   - serverless-iam-roles-per-function
 
+# Uncomment to enable individual packaging
+package:
+  individually: true
+
 provider:
   name: aws
   runtime: nodejs12.x
@@ -23,7 +27,6 @@ provider:
     SIGNED_URL_EXPIRATION: 300
     CONNECTIONS_TABLE: Connections-${self:provider.stage}
     CONNECTION_ID_INDEX: ConnectionIdIndex
-
 
   iamRoleStatements: #this will be set by all functions
     - Effect: Allow
@@ -45,7 +48,6 @@ functions:
   AuthWS:
     handler: src/lambda/auth/WebsocketAuth0Authorizer.handler
 
-  # TODO: Configure this function
   GetTodos:
     handler: src/lambda/http/getTodos.handler
     events:
@@ -61,7 +63,6 @@ functions:
           - dynamodb:Query
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}/index/${self:provider.environment.TODO_ID_INDEX}
 
-  # TODO: Configure this function
   CreateTodo:
     handler: src/lambda/http/createTodo.handler
     events:
@@ -81,7 +82,6 @@ functions:
           - dynamodb:PutItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
 
-  # TODO: Configure this function
   UpdateTodo:
     handler: src/lambda/http/updateTodo.handler
     events:
@@ -101,7 +101,6 @@ functions:
           - dynamodb:UpdateItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
 
-  # TODO: Configure this function
   DeleteTodo:
     handler: src/lambda/http/deleteTodo.handler
     events:
@@ -118,7 +117,6 @@ functions:
           - dynamodb:DeleteItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
 
-  # TODO: Configure this function
   GenerateUploadUrl:
     handler: src/lambda/http/generateUploadUrl.handler
     events:
@@ -140,7 +138,6 @@ functions:
           - dynamodb:UpdateItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
 
-  # TODO: Configure this function
   CreateFollow:
     handler: src/lambda/http/follow.handler
     events:
@@ -269,6 +266,39 @@ functions:
           - dynamodb:DeleteItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.CONNECTIONS_TABLE}
 
+  SyncWithElasticsearch:
+    handler: src/lambda/dynamoDB/elasticSearchSyncTodos.handler
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt TodosTable.StreamArn
+
+  NewFollowerNotification:
+    environment:
+      STAGE: ${self:provider.stage}
+      API_ID:
+        Ref: WebsocketsApi
+    handler: src/lambda/dynamoDB/sendNewFollowerNotification.handler
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt FollowsTable.StreamArn
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Scan
+          - dynamodb:Query
+          - dynamodb:GetItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.CONNECTIONS_TABLE}
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+          - dynamodb:GetItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.CONNECTIONS_TABLE}/index/${self:provider.environment.CONNECTION_ID_INDEX}
+      - Effect: Allow
+        Action:
+          - execute-api:ManageConnections # allow websocket operations: POST, DELETE and GET.
+        Resource: arn:aws:execute-api:${self:provider.region}:*:*/${self:provider.stage}/*/@connections/*
 
 resources:
   Resources:
@@ -310,6 +340,8 @@ resources:
               KeyType: RANGE
             Projection:
               ProjectionType: ALL
+        StreamSpecification:
+          StreamViewType: NEW_IMAGE
         BillingMode: PAY_PER_REQUEST
         TableName: ${self:provider.environment.TODOS_TABLE}
 
@@ -328,6 +360,8 @@ resources:
             KeyType: HASH
           - AttributeName: toId
             KeyType: RANGE
+        StreamSpecification:
+          StreamViewType: NEW_IMAGE
         GlobalSecondaryIndexes:
           - IndexName: ${self:provider.environment.FOLLOW_ID_INDEX}
             KeySchema:
