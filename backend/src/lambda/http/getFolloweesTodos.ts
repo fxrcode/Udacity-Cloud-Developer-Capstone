@@ -2,10 +2,8 @@ import 'source-map-support/register'
 
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
 
-import { CreateFollowRequest } from '../../requests/CreateFollowRequest'
-
 import { getUserId } from '../utils'
-import { follow } from '../../businessLogic/todos'
+import { getFolloweesTodos } from '../../businessLogic/todos'
 import { createLogger } from '../../utils/logger'
 import * as middy from 'middy'
 import { cors } from 'middy/middlewares'
@@ -13,24 +11,24 @@ import { cors } from 'middy/middlewares'
 const LOG = createLogger('follow')
 
 export const handler = middy(async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  const newFollow: CreateFollowRequest = JSON.parse(event.body)
   // TODO: Implement creating a new TODO item
   const userId = getUserId(event)
   try {
     LOG.info(`caller event`, { event })
-    const newFollowItem = await follow(userId, newFollow.followee)
+    const userToTodos = await getFolloweesTodos(userId)
+    LOG.info(`${userId}'s getFolloweesTodos list`, userToTodos)
 
     return {
       statusCode: 201,
       body: JSON.stringify({
-        item: newFollowItem
+        item: userToTodos
       })
     }
   } catch (e) {
     return {
       statusCode: 400,
       body: JSON.stringify({
-        error: `failed to create follow: ${e.message}`
+        error: `failed to getFolloweesTodos: ${e.message}`
       })
     }
   }

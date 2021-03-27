@@ -93,6 +93,8 @@ export class DBAccess {
       ScanIndexForward: false
     }).promise()
 
+    LOG.info(`all todos of user ${userId}:`, result.Items as TodoItem[])
+
     return result.Items as TodoItem[]
   }
 
@@ -125,11 +127,34 @@ export class DBAccess {
   async createFollow(follow: Follow) {
     LOG.info(`create follow item ${follow}`)
 
+    // validate if follow exists
+    const follows = await this.hasFollow(follow.fromId, follow.toId)
+    if (follows.length > 0) {
+      throw new Error(`follow from ${follow.fromId} to ${follow.toId} already exists, no need to create`)
+    }
+
     await this.docClient.put({
       TableName: this.followTable,
       Item: follow
     }).promise()
+
     return follow
+  }
+
+  async hasFollow(fromId: string, toId: string): Promise<Follow[]> {
+    LOG.info(`query if follow exists ${fromId} -> ${toId}`)
+
+    const result = await this.docClient.query({
+      TableName: this.followTable,
+      KeyConditionExpression: 'fromId = :fromId and toId = :toId',
+      ExpressionAttributeValues: {
+        ":fromId": fromId,
+        ":toId": toId
+      },
+      ScanIndexForward: false
+    }).promise()
+
+    return result.Items as Follow[]
   }
 
   async getFollowees(userId: string): Promise<Follow[]> {
@@ -148,24 +173,30 @@ export class DBAccess {
     return result.Items as Follow[]
   }
 
-
-  async getUsersTodos(followees: any[]): Promise<any> {
-    let userToTodos = new Map()
+  async getUsersTodos(followees: string[]): Promise<TodoItem[]> {
+    let userToTodos = []
     // https://stackoverflow.com/questions/37576685/using-async-await-with-a-foreach-loop
     // reading in parallel
-    await Promise.all(followees.map(async (userId) => {
-      const todos = this.getAllTodos(userId)
-      userToTodos.set(userId, todos)
-    }));
+    // await Promise.all(followees.map(async (userId) => {
+    //   const todos = this.getAllTodos(userId)
+    //   LOG.info(`Promise.all => todos of user: ${userId}`, todos)
+    //   userToTodos.set(userId, todos)
+    // }));
+    // reading in sequence
+    for (const followee of followees) {
+      const todos = await this.getAllTodos(followee)
+      userToTodos.push(todos)
+      LOG.info(`Promise.all => todos of user: ${followee}`, todos)
+    }
 
-    return userToTodos
+    return userToTodos as TodoItem[]
   }
 }
 
 
 function createDynamoDBClient() {
   if (process.env.IS_OFFLINE) {
-    console.log('Creating a local DynamoDB instance')
+    LOG.info('Creating a local DynamoDB instance')
     return new XAWS.DynamoDB.DocumentClient({
       region: 'localhost',
       endpoint: 'http://localhost:8000'

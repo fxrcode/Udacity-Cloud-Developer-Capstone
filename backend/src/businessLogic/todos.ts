@@ -84,8 +84,14 @@ export async function follow(followerId: string, followeeId: string) {
     LOG.info('bizlogic: new follow')
 
     // TODO: add validate for follower & followee in user table
-    // hasUser(followerId)
-    // hasUser(followeeId)
+    const hasFollower = await hasUser(followerId)
+    if (!hasFollower) {
+        throw new Error(`can't create follow, no follower ${followerId}`)
+    }
+    const hasFollowee = await hasUser(followeeId)
+    if (!hasFollowee) {
+        throw new Error(`can't create follow, no followee ${followeeId}`)
+    }
 
     const follow: Follow = {
         fromId: followerId,
@@ -98,19 +104,22 @@ export async function follow(followerId: string, followeeId: string) {
     return follow
 }
 
-export async function getFolloweeTodos(userId: string): Promise<any> {
+export async function getFolloweesTodos(userId: string): Promise<any> {
     LOG.info('bizlogic get All todos from user followees')
     // get the list of followees
     const follows: Follow[] = await dbAccess.getFollowees(userId)
-    var followees = []
+    var followees = new Set()
     follows.forEach(follow => {
-        followees.push(follow.toId)
+        followees.add(follow.toId)
     });
-    LOG.info(`User ${userId} follows ${followees}`)
+    LOG.info(`User ${userId} follows: `, followees)
     // get the list of todos of followees and combine them as a whole
-    const usersTodos = await dbAccess.getUsersTodos(followees)
-    LOG.info(`User ${userId}'s followees' todos: ${usersTodos}`)
-    return usersTodos
+    const followeeArr = Array.from(followees) as string[]
+    LOG.info(`User ${userId} follows array: `, followeeArr)
+    const followeesTodos = await dbAccess.getUsersTodos(followeeArr)
+
+    LOG.info(`user's newsfeed: ${followeesTodos}`)
+    return followeesTodos
 }
 
 
@@ -134,4 +143,14 @@ async function validateUser(userId: string, todoId: string) {
     LOG.info(`validated ok: user ${userId} 's todo: ${todoId}`)
 }
 
-async function
+async function hasUser(userId: string): Promise<boolean> {
+    const allTodos = await dbAccess.getAllTodos(userId)
+    if (allTodos.length == 0) {
+        LOG.info(`no todo found for user ${userId}, so no this user`)
+        return false;
+    } else {
+        const sz = allTodos.length
+        LOG.info(`user ${userId} has ${sz} todos`)
+        return true;
+    }
+}
